@@ -17,6 +17,9 @@
 #define WRAP 4095
 
 uint led_rgb[3] = {13,11,12};
+uint64_t volatile last_time = 0;
+uint64_t volatile current_time = 0;
+bool led_flag = true;
 
 uint init_pwm(uint gpio, uint wrap) {
     gpio_set_function(gpio, GPIO_FUNC_PWM);
@@ -43,12 +46,37 @@ void init_rgb(uint *led)
     gpio_put(led[2], false);
 }
 
+void init_buttons()
+{
+    gpio_init(buttonJ);
+    gpio_init(buttonA);
+
+    gpio_set_dir(buttonJ, GPIO_IN);
+    gpio_set_dir(buttonA, GPIO_IN);
+
+    gpio_pull_up(buttonJ);
+    gpio_pull_up(buttonA);
+}
+
+void gpio_irq_handler(uint gpio, uint32_t events)
+{
+    current_time = to_ms_since_boot(get_absolute_time());
+
+    if((current_time - last_time > 200))
+    {
+        last_time =  current_time;
+        
+        led_flag = !led_flag;
+    }
+}
 
 int main()
 {
     stdio_init_all();
 
     init_rgb(led_rgb);
+
+    init_buttons();
     
     adc_init();
     adc_gpio_init(VRX);
@@ -57,6 +85,7 @@ int main()
     uint pwm_red = init_pwm(led_rgb[0],WRAP);
     uint pwm_blue = init_pwm(led_rgb[2],WRAP);
 
+    gpio_set_irq_enabled_with_callback(buttonA, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
 
 
     while (true) {
@@ -68,17 +97,39 @@ int main()
         uint16_t vry_value = adc_read();
         printf("\n Y value: %d", vry_value);
 
-
-        if(vrx_value == 2048)
+        if(led_flag)
         {
-            pwm_set_gpio_level(led_rgb[0], 0);
+            if(vrx_value == 2047)
+            {
+                pwm_set_gpio_level(led_rgb[0], 0);
+            }else if(vrx_value < 2047)
+            {
+                pwm_set_gpio_level(led_rgb[0], 2047 + (2047 - vrx_value));
+            }else
+            {
+                pwm_set_gpio_level(led_rgb[0], vrx_value);
+            }
+
+
+            if(vry_value == 2047)
+            {
+                pwm_set_gpio_level(led_rgb[2], 0);
+            }else if(vry_value < 2047)
+            {
+                pwm_set_gpio_level(led_rgb[2], 2047 + (2047 - vry_value));
+            }else{
+                pwm_set_gpio_level(led_rgb[2], vry_value);
+            }
         }
 
-        if(vry_value == 2048)
+        current_time = to_ms_since_boot(get_absolute_time());
+
+        if(!gpio_get(buttonJ) && (current_time - last_time > 200))
         {
-            pwm_set_gpio_level(led_rgb[2], 0);
+            last_time = current_time;
+            gpio_put(led_rgb[1], !gpio_get(led_rgb[1]));
         }
 
-
+        sleep_ms(10);
     }
 }
