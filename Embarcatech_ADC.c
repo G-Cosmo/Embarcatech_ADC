@@ -16,12 +16,12 @@
 #define buttonA 5
 #define sqrCenterX (WIDTH/2)-4
 #define sqrCenterY (HEIGHT/2)-4
-// #define x_center  2147
-// #define y_center  1972
+#define DEADZONE 100
+
 
 uint led_rgb[3] = {13,11,12};
-uint x_center = 2047;
-uint y_center = 2047;
+uint x_center = 2047;   //centro padrão do joystick
+uint y_center = 2047;   //centro padrão do joystick
 float dcX = 0;   //percentual do ciclo de trabalho de x (led vermelho)
 float dcY = 0;   //percentual do ciclo de trabalho de y (led azul)
 float sqrX = 0;  //percentual de movimentação no eixo X do quadrado
@@ -35,8 +35,7 @@ bool led_flag = true;   //flag que habilita o controle dos leds via pwm
 bool edge_flag = false; //flag que habilita a mudaça de borda
 bool color = true;  //variavel que indica que se o pixel está ligado ou desligado
 ssd1306_t ssd; //inicializa a estrutura do display
-uint aux1 = 0;
-uint aux2 = 0;
+
 
 uint init_pwm(uint gpio, uint wrap) {
     gpio_set_function(gpio, GPIO_FUNC_PWM);
@@ -159,30 +158,39 @@ int main()
         uint16_t vry_value = adc_read();//realiza a leitura do valor de y
         printf("\n Y value: %d", vry_value);
 
-        if(vrx_value < x_center)//verifica se o valor lido no adc foi menor do que o centro do joystick
+        if(abs((int)vrx_value - (int)x_center) < DEADZONE)  //verifica se o eixo x está dentro da zona morta
+        {
+            dcX = 0;    //mantém o led desligado caso esteja
+            sqrX = sqrCenterX;  //mantém o quadrado no centro caso esteja
+        }else if(vrx_value < x_center)//verifica se o valor lido no adc foi menor do que o centro do joystick
         {
             vrx_value = x_center + (x_center - vrx_value);//ajusta o valor lido do adc para trabalhar com valores maiores do que o centro
-            dcX = ((float)(vrx_value - x_center) / (float)x_center);//calcula o percentual do ciclo de trabalho do eixo x
+            dcX = ((float)(vrx_value - x_center) / (float)wrapX);//calcula o percentual do ciclo de trabalho do eixo x
             printf("\ndcX: %f", dcX);
 
             sqrX = (1-(dcX/moveFactor))*sqrCenterX; //calcula o percentual de movimentação do quadrado no eixo x
         }else
         {
-            dcX = ((float)(vrx_value - x_center) / (float)x_center);//calcula o percentual do ciclo de trabalho do eixo x
+            dcX = ((float)(vrx_value - x_center) / (float)wrapX);//calcula o percentual do ciclo de trabalho do eixo x
             printf("\ndcX: %f", dcX);
 
             sqrX = (1+(dcX/moveFactor))*sqrCenterX; //calcula o percentual de movimentação do quadrado no eixo x
         }
 
-        if(vry_value < y_center)
+        if(abs((int)vry_value - (int)y_center) < DEADZONE)  //verifica se o eixo y está dentro da zona morta
         {
-            vry_value = y_center + (y_center - vry_value);
-            dcY = ((float)(vry_value - y_center) / (float)y_center);//calcula o percentual do ciclo de trabalho do eixo y
+            dcY = 0;    //mantém o led desligado caso esteja
+            sqrY = sqrCenterY;  //mantém o quadrado no centro caso esteja
+        }else if(vry_value < y_center)//verifica se o valor lido no adc foi menor do que o centro do joystick
+        {
+            vry_value = y_center + (y_center - vry_value);//ajusta o valor lido do adc para trabalhar com valores maiores do que o centro
+            dcY = ((float)(vry_value - y_center) / (float)wrapY);//calcula o percentual do ciclo de trabalho do eixo y
             printf("\ndcy: %f", dcY);
 
             sqrY = (1+(dcY/moveFactor))*sqrCenterY; //calcula o percentual de movimentação do quadrado no eixo y
-        }else{
-            dcY = ((float)(vry_value - y_center) / (float)y_center);    //calcula o percentual do ciclo de trabalho do eixo y
+        }else
+        {
+            dcY = ((float)(vry_value - y_center) / (float)wrapY);    //calcula o percentual do ciclo de trabalho do eixo y
             printf("\ndcy: %f", dcY);
 
             sqrY = (1-(dcY/moveFactor))*sqrCenterY; //calcula o percentual de movimentação do quadrado no eixo y
