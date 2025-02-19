@@ -103,9 +103,11 @@ void gpio_irq_handler(uint gpio, uint32_t events)
         last_time =  current_time;
         
         led_flag = !led_flag;//atualiza a flag que permite ou não o controle dos leds vermelho e azul
+
+        pwm_set_gpio_level(led_rgb[0], 0);
+        pwm_set_gpio_level(led_rgb[2], 0);
     }
 }
-
 
 int main()
 {
@@ -162,20 +164,13 @@ int main()
             vrx_value = x_center + (x_center - vrx_value);//ajusta o valor lido do adc para trabalhar com valores maiores do que o centro
             dcX = ((float)(vrx_value - x_center) / (float)x_center);//calcula o percentual do ciclo de trabalho do eixo x
             printf("\ndcX: %f", dcX);
-            if(led_flag) pwm_set_gpio_level(led_rgb[0], (uint)(dcX*wrapX));//atualiza o ciclo de trabalho do eixo x
-
-            // aux1 = (uint)(dcX*wrapX);
-            // printf("\nCounter top X: %d ", aux1);
 
             sqrX = (1-(dcX/moveFactor))*sqrCenterX; //calcula o percentual de movimentação do quadrado no eixo x
         }else
         {
             dcX = ((float)(vrx_value - x_center) / (float)x_center);//calcula o percentual do ciclo de trabalho do eixo x
             printf("\ndcX: %f", dcX);
-            if(led_flag) pwm_set_gpio_level(led_rgb[0], (uint)(dcX*wrapX));//atualiza o ciclo de trabalho do eixo x
-            
-            // aux1 = (uint)(dcX*wrapX);
-            // printf("\nCounter top X: %d ", aux1);
+
             sqrX = (1+(dcX/moveFactor))*sqrCenterX; //calcula o percentual de movimentação do quadrado no eixo x
         }
 
@@ -185,28 +180,22 @@ int main()
             dcY = ((float)(vry_value - y_center) / (float)y_center);//calcula o percentual do ciclo de trabalho do eixo y
             printf("\ndcy: %f", dcY);
 
-            if(led_flag) pwm_set_gpio_level(led_rgb[2], (uint)(dcY*wrapY));//atualiza o ciclo de trabalho do eixo y
-
-            // aux2 = (uint)(dcY*wrapY);
-            // printf("\nCounter top Y: %d ", aux2);
             sqrY = (1+(dcY/moveFactor))*sqrCenterY; //calcula o percentual de movimentação do quadrado no eixo y
         }else{
             dcY = ((float)(vry_value - y_center) / (float)y_center);    //calcula o percentual do ciclo de trabalho do eixo y
             printf("\ndcy: %f", dcY);
-            if(led_flag) pwm_set_gpio_level(led_rgb[2], (uint)(dcY*wrapY)); //atualiza o ciclo de trabalho do eixo y
 
-            // aux2 = (uint)(dcY*wrapY);
-            // printf("\nCounter top Y: %d ", aux2);
             sqrY = (1-(dcY/moveFactor))*sqrCenterY; //calcula o percentual de movimentação do quadrado no eixo y
-
         }
-        
+    
         ssd1306_fill(&ssd, !color); //limpa o display
         ssd1306_rect(&ssd, sqrY, sqrX, 8, 8, color, color); //desenha o quadrado 8x8 
         ssd1306_rect(&ssd, 3, 3, 122, 58, color, !color); //desenha um retângulo nas bordas do display
-        if(edge_flag)ssd1306_rect(&ssd, 2, 2, 124, 60, color, !color); //desenha um retângulo mais largo nas bordas do display
-
+        if(edge_flag) ssd1306_rect(&ssd, 2, 2, 124, 60, color, !color); //desenha um retângulo mais largo nas bordas do display
         ssd1306_send_data(&ssd);    //atualiza o display
+
+        if(led_flag) pwm_set_gpio_level(led_rgb[0], (uint)(dcX*wrapX));//atualiza o ciclo de trabalho do eixo x
+        if(led_flag) pwm_set_gpio_level(led_rgb[2], (uint)(dcY*wrapY));//atualiza o ciclo de trabalho do eixo y
 
         current_time = to_ms_since_boot(get_absolute_time());   //pega o tempo atual
 
